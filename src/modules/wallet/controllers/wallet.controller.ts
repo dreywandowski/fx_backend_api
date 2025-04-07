@@ -18,9 +18,10 @@ import {
 } from '../dto/wallet.dto';
 import { FxService } from 'src/modules/transaction/service/fx.service';
 import { ApiOperation } from '@nestjs/swagger';
+import { EmailVerifiedGuard } from 'src/modules/common/guards/verified.guard';
 
 @Controller('wallet')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, EmailVerifiedGuard)
 export class WalletController {
   constructor(
     private readonly walletService: WalletService,

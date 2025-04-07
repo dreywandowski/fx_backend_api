@@ -19,6 +19,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from 'src/modules/common/guards/auth.guard';
 import { ApiOperation } from '@nestjs/swagger';
 import { TransactionFilterDto } from '../dto/transaction.dto';
+import { EmailVerifiedGuard } from 'src/modules/common/guards/verified.guard';
 
 @Controller('transactions')
 export class TransactionController {
@@ -30,6 +31,7 @@ export class TransactionController {
   ) {}
 
   @Get()
+  @UseGuards(AuthGuard, EmailVerifiedGuard)
   @ApiOperation({ summary: 'Get transaction history with filters' })
   async getTransactionHistory(
     @Req() req,
@@ -87,6 +89,7 @@ export class TransactionController {
   }
 
   @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, EmailVerifiedGuard)
   @ApiOperation({ summary: 'verify a transaction from paystack' })
   @Get('verify-transaction/:reference')
   async verifyTransaction(@Req() req, @Param() reference: string) {

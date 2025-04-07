@@ -3,9 +3,10 @@ import { FxService } from '../service/fx.service';
 import { GetFxRatesDto } from '../dto/fx.dto';
 import { AuthGuard } from 'src/modules/common/guards/auth.guard';
 import { ApiOperation } from '@nestjs/swagger';
+import { EmailVerifiedGuard } from 'src/modules/common/guards/verified.guard';
 
 @Controller('fx')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, EmailVerifiedGuard)
 export class FxController {
   constructor(private readonly fxService: FxService) {}
 
