@@ -18,7 +18,7 @@ import { MailService } from './mail.service';
           },
         },
         defaults: {
-          from: `"Aisthar" <${configService.get<string>('mail.from')}>`,
+          from: `"Credpal" <${configService.get<string>('mail.from')}>`,
         },
       }),
     }),

@@ -11,25 +11,37 @@ import {
   Req,
   Param,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
-import { HttpService } from 'src/modules/http/service/http.service';
 import { TransactionService } from '../service/transaction.service';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from 'src/modules/common/guards/auth.guard';
+import { ApiOperation } from '@nestjs/swagger';
+import { TransactionFilterDto } from '../dto/transaction.dto';
 
-@Controller('paystack/webhook')
-export class PaystackWebhookController {
-  private readonly logger = new Logger(PaystackWebhookController.name);
+@Controller('transactions')
+export class TransactionController {
+  private readonly logger = new Logger(TransactionController.name);
 
   constructor(
-    private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly transactionService: TransactionService,
   ) {}
 
-  @Post()
+  @Get()
+  @ApiOperation({ summary: 'Get transaction history with filters' })
+  async getTransactionHistory(
+    @Req() req,
+    @Query() filters: TransactionFilterDto,
+  ) {
+    const userId = req.user.id;
+    return this.transactionService.getTransactionHistory(req, filters);
+  }
+
+  @Post('/webhook')
   @HttpCode(200)
+  @ApiOperation({ summary: 'Webhook to listen for events from Paystack' })
   async handleWebhook(
     @Body() eventData: any,
     @Headers('x-paystack-signature') signature: string,
@@ -75,6 +87,7 @@ export class PaystackWebhookController {
   }
 
   @UseGuards(AuthGuard)
+  @ApiOperation({ summary: 'verify a transaction from paystack' })
   @Get('verify-transaction/:reference')
   async verifyTransaction(@Req() req, @Param() reference: string) {
     return {

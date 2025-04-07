@@ -12,7 +12,7 @@ import {
   Req,
 } from '@nestjs/common';
 
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthService } from './service/auth.service';
 import {
@@ -35,6 +35,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @ApiOperation({ summary: 'Onboard a new user to the platform' })
   async create(@Body() createUserDto: CreateUserDto) {
     return {
       status: true,
@@ -44,27 +45,24 @@ export class AuthController {
     };
   }
 
-  @Post('resend-link')
+  @Post('resend-otp')
+  @ApiOperation({
+    summary: 'resend verification OTP in case they could not get it',
+  })
   async resendLink(@Body() resendLink: ResendLinkDto) {
     return {
       status: true,
-      message: 'Verification link resent successfully',
+      message: 'Verification OTP resent successfully',
       statusCode: HttpStatus.OK,
-      data: await this.authService.resendLink(resendLink),
-    };
-  }
-
-  @Get('verify')
-  async verifyEmail(@Query() verifyEmailDto: VerifyEmailDto) {
-    await this.authService.verifyEmail(verifyEmailDto);
-    return {
-      status: true,
-      message: 'Account verified successfully',
-      statusCode: HttpStatus.OK,
+      data: await this.authService.resendOTP(resendLink),
     };
   }
 
   @Post('login')
+  @ApiOperation({
+    summary:
+      'Log the user in the system. If 2FA is completed user will need to use the Bearer obtained from here to verify',
+  })
   async login(@Body() loginUserDto: LoginUserDto) {
     const loginResponse = await this.authService.login(loginUserDto);
 
@@ -89,7 +87,18 @@ export class AuthController {
     }
   }
 
+  @Get('verify')
+  @ApiOperation({ summary: 'Verify user email address' })
+  async verifyEmail(@Query() verifyEmailDto: VerifyEmailDto) {
+    await this.authService.verifyEmail(verifyEmailDto);
+    return {
+      status: true,
+      message: 'Account verified successfully',
+      statusCode: HttpStatus.OK,
+    };
+  }
   @Post('refresh-login-token')
+  @ApiOperation({ summary: 'Keep user signed in by refresh token' })
   async refreshToken(
     @Body() refresh: RefreshTokenDto,
     @Res() response: Response,
@@ -107,6 +116,7 @@ export class AuthController {
   }
 
   @UseGuards(VerifyTwoFactorGuard)
+  @ApiOperation({ summary: 'Verify user 2fa login' })
   @Post('verify-2fa')
   async verify2fa(@Request() req, @Body() verify2fa: VerifyTwoFactorDto) {
     return {
@@ -118,6 +128,7 @@ export class AuthController {
   }
 
   @Post('password/request-reset')
+  @ApiOperation({ summary: 'Initiate a password reset' })
   async requestReset(@Body() requestResetDto: RequestResetDto) {
     await this.authService.requestPasswordReset(requestResetDto);
     return {
@@ -128,6 +139,7 @@ export class AuthController {
   }
 
   @Post('password/reset')
+  @ApiOperation({ summary: 'Verify and reset user password' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return {
       status: true,

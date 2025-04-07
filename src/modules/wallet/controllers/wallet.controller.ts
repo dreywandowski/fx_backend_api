@@ -11,14 +11,24 @@ import {
 
 import { WalletService } from '../service/wallet.service';
 import { AuthGuard } from 'src/modules/common/guards/auth.guard';
-import { FundWalletDto, GetWalletBalanceDto } from '../dto/wallet.dto';
+import {
+  ConvertCurrencyDto,
+  FundWalletDto,
+  GetWalletBalanceDto,
+} from '../dto/wallet.dto';
+import { FxService } from 'src/modules/transaction/service/fx.service';
+import { ApiOperation } from '@nestjs/swagger';
 
 @Controller('wallet')
 @UseGuards(AuthGuard)
 export class WalletController {
-  constructor(private readonly walletService: WalletService) {}
+  constructor(
+    private readonly walletService: WalletService,
+    private readonly fxService: FxService,
+  ) {}
 
   @Get()
+  @ApiOperation({ summary: 'Retrieve user wallet balances by currency' })
   async getBalance(@Req() req, @Query() query: GetWalletBalanceDto) {
     return {
       status: true,
@@ -28,13 +38,27 @@ export class WalletController {
     };
   }
 
-  @Post('fund-wallet')
+  @Post('fund')
+  @ApiOperation({ summary: 'Fund user wallet' })
   async fundWallet(@Req() req, @Body() body: FundWalletDto) {
     return {
       status: true,
       message: 'Wallet funding completed succesfully',
       statusCode: HttpStatus.OK,
       data: this.walletService.fundWallet(req, body),
+    };
+  }
+
+  @Get('convert')
+  @ApiOperation({
+    summary: 'Get the value of an amoun from a pair of currencies',
+  })
+  async convertCurrency(@Req() req, @Query() query: ConvertCurrencyDto) {
+    return {
+      status: true,
+      message: 'Conversion completed succesfully',
+      statusCode: HttpStatus.OK,
+      data: await this.fxService.convert(req, query),
     };
   }
 }

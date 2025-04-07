@@ -5,6 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { WalletEntity } from 'src/modules/wallet/entities/wallet.entity';
 import { UserEntity } from 'src/modules/user/entities/user.entity';
@@ -17,6 +18,9 @@ export class TransactionEntity {
 
   @Column({ unique: true })
   reference: string;
+
+  @Column({ nullable: true })
+  description: string;
 
   @Column('decimal', { precision: 10, scale: 2 })
   amount: number;
@@ -34,15 +38,18 @@ export class TransactionEntity {
   })
   type: TransactionType;
 
+  @Column({ type: 'decimal', precision: 18, scale: 6, nullable: true })
+  rate_used: number;
+
   @Column({ nullable: true })
   currency: string;
 
-  @ManyToOne(() => WalletEntity, (wallet) => wallet.transactions, {
-    eager: true,
-  })
+  @ManyToOne(() => WalletEntity, (wallet) => wallet.transactions)
+  @JoinColumn({ name: 'wallet_id' })
   wallet: WalletEntity;
 
-  @ManyToOne(() => UserEntity, (user) => user.transactions, { eager: true })
+  @ManyToOne(() => UserEntity, (user) => user.transactions)
+  @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
   @CreateDateColumn()

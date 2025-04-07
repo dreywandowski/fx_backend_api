@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApiLogsEntity } from './entities/api_logs.entity';
-import { HttpService } from './service/http.service';
+import { ApiService } from './service/api.service';
 
 @Module({
   controllers: [],
-  providers: [HttpService],
+  providers: [ApiService],
   imports: [TypeOrmModule.forFeature([ApiLogsEntity])],
-  exports: [HttpService],
+  exports: [ApiService],
 })
-export class HttpModule {}
+export class ApiModule {}

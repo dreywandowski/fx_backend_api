@@ -1,18 +1,16 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TransactionEntity } from '../entities/transaction.entity/transaction.entity';
 import { WalletEntity } from 'src/modules/wallet/entities/wallet.entity';
-import { HttpService } from 'src/modules/http/service/http.service';
 import { FundWalletDto } from 'src/modules/wallet/dto/wallet.dto';
 import { ConfigService } from '@nestjs/config';
 import { UserEntity } from 'src/modules/user/entities/user.entity';
 import { TransactionType } from '../types';
 import { PaystackService } from './paystack.service';
+import { WalletService } from 'src/modules/wallet/service/wallet.service';
+import { WalletBalanceEntity } from 'src/modules/wallet/entities/wallet-balances.entity';
+import { TransactionFilterDto } from '../dto/transaction.dto';
 
 @Injectable()
 export class TransactionService {
@@ -25,13 +23,14 @@ export class TransactionService {
     private readonly walletRepository: Repository<WalletEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    private readonly httpService: HttpService,
+    @Inject(forwardRef(() => WalletService))
+    private readonly walletService: WalletService,
     private readonly paystackService: PaystackService,
     private readonly configService: ConfigService,
   ) {}
 
-  private generateReference(): string {
-    return 'TXN_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  generateReference(): string {
+    return `TRX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   }
 
   async initiateTransaction(req: any, data: FundWalletDto) {
@@ -114,218 +113,247 @@ export class TransactionService {
   }
 
   async handleTransferSuccess(eventData: any) {
-    this.logger.log(
-      `Processing Transfer Success event: ${JSON.stringify(eventData)}`,
+    this.logger.log(`Transfer Success: ${JSON.stringify(eventData)}`);
+    return this.walletService.adjustWalletBalanceForTransaction(
+      eventData.data,
+      TransactionType.CREDIT,
     );
-    const transactionData = eventData.data;
-
-    const queryRunner =
-      this.transactionRepository.manager.connection.createQueryRunner();
-    await queryRunner.startTransaction();
-
-    try {
-      const transaction = await queryRunner.manager.findOne(TransactionEntity, {
-        where: { reference: transactionData.reference },
-      });
-
-      if (!transaction) {
-        throw new Error(
-          `Transaction with reference ${transactionData.reference} not found`,
-        );
-      }
-
-      transaction.status = 'success';
-      transaction.amount = transactionData.amount / 100;
-
-      await queryRunner.manager.save(transaction);
-
-      const wallet = await queryRunner.manager.findOne(WalletEntity, {
-        where: { id: transactionData.walletId },
-      });
-
-      if (wallet) {
-        wallet.naira += transactionData.amount / 100;
-        await queryRunner.manager.save(wallet);
-      }
-
-      await queryRunner.commitTransaction();
-
-      this.logger.log(
-        `Transfer success processed: ${transactionData.reference}`,
-      );
-
-      return true;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Failed to process Transfer Success: ${eventData.data.reference}`,
-        error,
-      );
-      return false;
-    } finally {
-      await queryRunner.release();
-    }
   }
 
   async handleTransferFailed(eventData: any) {
-    this.logger.warn(
-      `Processing Transfer Failed event: ${JSON.stringify(eventData)}`,
+    this.logger.warn(`Transfer Failed: ${JSON.stringify(eventData)}`);
+    return this.walletService.adjustWalletBalanceForTransaction(
+      eventData.data,
+      TransactionType.DEBIT,
     );
-    const transactionData = eventData.data;
-
-    const queryRunner =
-      this.transactionRepository.manager.connection.createQueryRunner();
-    await queryRunner.startTransaction();
-
-    try {
-      const transaction = await queryRunner.manager.findOne(TransactionEntity, {
-        where: { reference: transactionData.reference },
-      });
-
-      if (!transaction) {
-        throw new Error(
-          `Transaction with reference ${transactionData.reference} not found`,
-        );
-      }
-
-      transaction.status = 'failed';
-      transaction.amount = transactionData.amount / 100;
-
-      await queryRunner.manager.save(transaction);
-
-      const wallet = await queryRunner.manager.findOne(WalletEntity, {
-        where: { id: transactionData.walletId },
-      });
-
-      if (wallet) {
-        wallet.naira -= transactionData.amount / 100;
-        await queryRunner.manager.save(wallet);
-      }
-
-      await queryRunner.commitTransaction();
-      this.logger.warn(
-        `Transfer failed processed: ${transactionData.reference}`,
-      );
-
-      return true;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Failed to process Transfer Failed: ${transactionData.reference}`,
-        error,
-      );
-      return false;
-    } finally {
-      await queryRunner.release();
-    }
   }
 
   async handleTransferReversed(eventData: any) {
-    this.logger.warn(
-      `Processing Transfer Reversed event: ${JSON.stringify(eventData)}`,
+    this.logger.warn(`Transfer Reversed: ${JSON.stringify(eventData)}`);
+    return this.walletService.adjustWalletBalanceForTransaction(
+      eventData.data,
+      TransactionType.DEBIT,
     );
-    const transactionData = eventData.data;
-
-    const queryRunner =
-      this.transactionRepository.manager.connection.createQueryRunner();
-    await queryRunner.startTransaction();
-
-    try {
-      const transaction = await queryRunner.manager.findOne(TransactionEntity, {
-        where: { reference: transactionData.reference },
-      });
-
-      if (!transaction) {
-        throw new Error(
-          `Transaction with reference ${transactionData.reference} not found`,
-        );
-      }
-
-      transaction.status = 'reversed';
-      transaction.amount = transactionData.amount / 100;
-
-      await queryRunner.manager.save(transaction);
-
-      const wallet = await queryRunner.manager.findOne(WalletEntity, {
-        where: { id: transactionData.walletId },
-      });
-
-      if (wallet) {
-        wallet.naira -= transactionData.amount / 100;
-        await queryRunner.manager.save(wallet);
-      }
-
-      await queryRunner.commitTransaction();
-      this.logger.warn(
-        `Transfer reversed processed: ${transactionData.reference}`,
-      );
-
-      return true;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Failed to process Transfer Reversed: ${transactionData.reference}`,
-        error,
-      );
-      return false;
-    } finally {
-      await queryRunner.release();
-    }
   }
 
-  private async handleSuccessfulTransaction(transactionData: any) {
-    const queryRunner =
-      this.transactionRepository.manager.connection.createQueryRunner();
-    await queryRunner.startTransaction();
-
-    try {
-      const transaction = await queryRunner.manager.findOne(TransactionEntity, {
-        where: { reference: transactionData.reference },
-      });
-
-      if (!transaction) {
-        throw new Error(
-          `Transaction with reference ${transactionData.reference} not found`,
-        );
-      }
-
-      transaction.status = transactionData.status;
-      transaction.amount = transactionData.amount / 100;
-
-      await queryRunner.manager.save(transaction);
-
-      const wallet = await queryRunner.manager.findOne(WalletEntity, {
-        where: { id: transactionData.walletId },
-      });
-
-      if (wallet) {
-        wallet.naira += transactionData.amount / 100;
-        await queryRunner.manager.save(wallet);
-      }
-
-      await queryRunner.commitTransaction();
-      this.logger.log(
-        `Transaction successfully processed: ${transactionData.reference}`,
-      );
-
-      return true;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `Transaction processing failed: ${transactionData.reference}`,
-        error,
-      );
-
-      return false;
-    } finally {
-      await queryRunner.release();
-    }
+  async handleSuccessfulTransaction(eventData: any) {
+    this.logger.log(`Successful Transaction: ${JSON.stringify(eventData)}`);
+    return this.walletService.adjustWalletBalanceForTransaction(
+      eventData.data,
+      TransactionType.FUNDING,
+    );
   }
 
-  async getTransactions(walletId: string): Promise<TransactionEntity[]> {
-    return this.transactionRepository.find({
-      where: { wallet: { id: walletId } },
-      order: { created_at: 'DESC' },
+  private async createOrUpdateTransaction(
+    transactionData: any,
+    queryRunner: any,
+  ) {
+    let transaction = await queryRunner.manager.findOne(TransactionEntity, {
+      where: { reference: transactionData.reference },
     });
+
+    if (!transaction) {
+      this.logger.log(
+        `Creating new transaction with reference: ${transactionData.reference}`,
+      );
+      transactionData.status = transactionData.status || 'pending';
+      transactionData.description = transactionData.description || '';
+      transactionData.type = transactionData.type;
+      transaction = this.transactionRepository.create(transactionData);
+      await queryRunner.manager.save(transaction);
+    } else {
+      this.logger.log(
+        `Updating existing transaction with reference: ${transactionData.reference}`,
+      );
+      transaction.amount = transactionData.amount || transaction.amount;
+      transaction.status = transactionData.status || transaction.status;
+      transaction.description =
+        transactionData.description || transaction.description;
+      await queryRunner.manager.save(transaction);
+    }
+
+    return transaction;
+  }
+
+  private async getOrCreateWalletBalance(
+    walletId: string,
+    currency: string,
+    queryRunner: any,
+  ): Promise<WalletBalanceEntity> {
+    let balance = await queryRunner.manager.findOne(WalletBalanceEntity, {
+      where: { wallet: { id: walletId }, currency },
+    });
+
+    if (!balance) {
+      balance = queryRunner.manager.create(WalletBalanceEntity, {
+        wallet: { id: walletId },
+        currency,
+        balance: 0,
+        locked_balance: 0,
+      });
+      await queryRunner.manager.save(balance);
+    }
+
+    if (!balance) {
+      throw new Error('Failed to create or find wallet balance');
+    }
+
+    return balance;
+  }
+
+  private async adjustBalance(
+    operation: TransactionType,
+    sourceBalance: WalletBalanceEntity,
+    targetBalance: WalletBalanceEntity | null,
+    amount: number,
+    queryRunner: any,
+    conversionRate?: number,
+  ) {
+    const amountInBaseUnit = amount / 100;
+    switch (operation) {
+      case TransactionType.DEBIT:
+        if (sourceBalance.balance < amountInBaseUnit) {
+          throw new Error(
+            `Insufficient funds: ${sourceBalance.balance} < ${amountInBaseUnit}`,
+          );
+        }
+        sourceBalance.balance -= amountInBaseUnit;
+        await queryRunner.manager.save(sourceBalance);
+        break;
+
+      case TransactionType.CREDIT:
+      case TransactionType.FUNDING:
+        sourceBalance.balance += amountInBaseUnit;
+        await queryRunner.manager.save(sourceBalance);
+        break;
+
+      case TransactionType.CONVERT:
+        if (!conversionRate) {
+          throw new Error('Conversion rate not provided');
+        }
+        break;
+
+      default:
+        throw new Error(`Invalid operation: ${operation}`);
+    }
+
+    if (targetBalance && operation !== TransactionType.CONVERT) {
+      await queryRunner.manager.save(targetBalance);
+    }
+  }
+
+  async updateTransactionAndAdjustBalance(
+    transactionData: any,
+    operation: TransactionType,
+  ): Promise<boolean> {
+    const queryRunner =
+      this.transactionRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    if (!transactionData.reference) {
+      transactionData.reference = this.generateReference();
+    }
+
+    try {
+      const transaction = await this.createOrUpdateTransaction(
+        transactionData,
+        queryRunner,
+      );
+
+      const wallet = await queryRunner.manager.findOne(WalletEntity, {
+        where: { id: transactionData.walletId },
+      });
+
+      if (!wallet) {
+        throw new Error(`Wallet not found for ID: ${transactionData.walletId}`);
+      }
+      let targetBalance = null;
+      let sourceBalance: WalletBalanceEntity | null = null;
+      if (operation != TransactionType.CONVERT) {
+        sourceBalance = await this.getOrCreateWalletBalance(
+          wallet.id,
+          transactionData.currency,
+          queryRunner,
+        );
+
+        if (!sourceBalance) {
+          throw new Error('Source balance could not be found or created');
+        }
+      } else {
+        sourceBalance =
+          this.transactionRepository.manager.create(WalletBalanceEntity);
+      }
+
+      await this.adjustBalance(
+        operation,
+        sourceBalance,
+        targetBalance,
+        transactionData.amount,
+        queryRunner,
+        transactionData.metadata?.conversion_rate,
+      );
+
+      await queryRunner.commitTransaction();
+
+      this.logger.log(
+        `Transaction and wallet adjustment completed successfully: ${transactionData.reference}`,
+      );
+      return true;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(
+        `Failed to update transaction and adjust wallet balance: ${error.message}`,
+        error,
+      );
+      return false;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async getTransactionHistory(user: UserEntity, filters: TransactionFilterDto) {
+    const { page = 1, limit = 10 } = filters;
+    const skip = (page - 1) * limit;
+
+    const query = this.transactionRepository
+      .createQueryBuilder('tx')
+      .where('tx.userId = :userId', { userId: user.id });
+
+    if (filters.type) query.andWhere('tx.type = :type', { type: filters.type });
+    if (filters.status)
+      query.andWhere('tx.status = :status', { status: filters.status });
+    if (filters.currency)
+      query.andWhere('tx.currency = :currency', { currency: filters.currency });
+
+    if (filters.fromDate)
+      query.andWhere('tx.createdAt >= :fromDate', {
+        fromDate: new Date(filters.fromDate),
+      });
+    if (filters.toDate)
+      query.andWhere('tx.createdAt <= :toDate', {
+        toDate: new Date(filters.toDate),
+      });
+
+    if (filters.search)
+      query.andWhere('tx.description ILIKE :search', {
+        search: `%${filters.search}%`,
+      });
+
+    const [transactions, total] = await query
+      .orderBy('tx.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data: transactions,
+      meta: {
+        total,
+        page,
+        limit,
+        pageCount: Math.ceil(total / limit),
+      },
+    };
   }
 }

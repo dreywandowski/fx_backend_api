@@ -63,4 +63,8 @@ export default () => ({
     key: getEnvOrThrow<number>('PAYSTACK_KEY'),
     callback_url: getEnvOrThrow<string>('PAYSTACK_CALLBACK_URL'),
   },
+  fx_api: {
+    base_url: getEnvOrThrow<string>('FX_ENDPOINT'),
+    key: getEnvOrThrow<number>('FX_API_KEY'),
+  },
 });

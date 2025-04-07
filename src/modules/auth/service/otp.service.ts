@@ -88,10 +88,11 @@ export class OtpService {
     return toDataURL(otpauthUrl);
   }
 
-  async verifyOtp(otp: string, user: UserEntity): Promise<boolean> {
-    if (!user.two_factor_method) {
-      throw new BadRequestException('2FA method is not set');
-    }
+  async verifyOtp(
+    otp: string,
+    user: UserEntity,
+    type?: string,
+  ): Promise<boolean> {
     if (user.two_factor_method === 'totp') {
       if (!user.two_factor_secret) {
         throw new BadRequestException('2FA is not enabled');
@@ -109,7 +110,7 @@ export class OtpService {
       await this.redisService.delete(key);
       return true;
     }
-    return this.verifyStandardOtp(user.id, otp, '2fa');
+    return this.verifyStandardOtp(user.id, otp, type);
   }
 
   private getSecret(): string {

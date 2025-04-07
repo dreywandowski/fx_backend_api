@@ -10,6 +10,8 @@ import {
 } from 'typeorm';
 import { UserEntity } from 'src/modules/user/entities/user.entity';
 import { TransactionEntity } from 'src/modules/transaction/entities/transaction.entity/transaction.entity';
+import { WalletBalanceEntity } from './wallet-balances.entity';
+import { Currency } from '../types';
 
 @Entity('wallet')
 export class WalletEntity {
@@ -20,23 +22,18 @@ export class WalletEntity {
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
-  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 })
-  naira: number;
-
-  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 })
-  dollar: number;
-
-  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 })
-  pound: number;
-
-  @Column({ type: 'decimal', precision: 18, scale: 2, default: 0 })
-  euro: number;
-
-  @Column({ default: 'naira' })
-  default_currency: 'naira' | 'dollar' | 'pound' | 'euro';
+  @Column({
+    type: 'enum',
+    enum: Currency,
+    default: Currency.NGN,
+  })
+  default_currency: Currency;
 
   @OneToMany(() => TransactionEntity, (transaction) => transaction.wallet)
   transactions: TransactionEntity[];
+
+  @OneToMany(() => WalletBalanceEntity, (balance) => balance.wallet)
+  balances: WalletBalanceEntity[];
 
   @CreateDateColumn()
   created_at: Date;

@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 import { Request, Response } from 'express';
-import { HttpService } from 'src/modules/http/service/http.service';
+import { ApiService } from 'src/modules/api/service/api.service';
 
 @Injectable()
 export class ApiLoggerInterceptor implements NestInterceptor {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly apiService: ApiService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const httpCtx = context.switchToHttp();
@@ -51,7 +51,7 @@ export class ApiLoggerInterceptor implements NestInterceptor {
           },
         };
 
-        await this.httpService.request(method, log);
+        await this.apiService.request(method, log);
       }),
     );
   }

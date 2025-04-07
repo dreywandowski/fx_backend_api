@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { HttpService } from 'src/modules/http/service/http.service';
+import { ApiService } from 'src/modules/api/service/api.service';
 
 @Injectable()
 export class PaystackService {
   private readonly logger = new Logger(PaystackService.name);
 
   constructor(
-    private readonly httpService: HttpService,
+    private readonly apiService: ApiService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -27,10 +27,10 @@ export class PaystackService {
     };
 
     try {
-      const response = await this.httpService.request('POST', {
+      const response = await this.apiService.request('POST', {
         req,
         url,
-        application: 'paystack',
+        application: 'initiate-paystack-transaction',
         api_payload: payload,
         config: { headers },
       });
@@ -48,10 +48,10 @@ export class PaystackService {
     };
 
     try {
-      const response = await this.httpService.request('GET', {
+      const response = await this.apiService.request('GET', {
         req,
         url,
-        application: 'paystack',
+        application: 'verify-paystack-transaction',
         config: { headers },
       });
       return response.data;

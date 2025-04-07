@@ -4,6 +4,14 @@ export enum TransactionType {
   PURCHASE = 'purchase',
   TRANSFER = 'transfer',
   REVERSAL = 'reversal',
-  CONVERSION = 'conversion',
+  CONVERT = 'convert',
   TRADE = 'trade',
+  CREDIT = 'credit',
+  DEBIT = 'debit',
+}
+
+export enum TransactionStatus {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
 }

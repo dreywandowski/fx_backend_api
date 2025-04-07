@@ -11,7 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { UserService } from '../user.service';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import {
   ConfirmTwoFactorDto,
@@ -30,18 +30,14 @@ export class UserController {
     private readonly otpService: OtpService,
   ) {}
 
-  @UseGuards(AuthGuard)
   @Get()
-  findAll() {
-    return this.userService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.userService.findById(id);
+  @ApiOperation({ summary: 'retrieve user information' })
+  findOne(@Request() req) {
+    return this.userService.findById(req.user.id);
   }
 
   @Post('2fa/enable')
+  @ApiOperation({ summary: 'enable 2fa' })
   async enableTwoFactor(
     @Request() req,
     @Body() enableTwoFactor: EnableTwoFactorDto,
@@ -55,6 +51,7 @@ export class UserController {
   }
 
   @Post('2fa/confirm')
+  @ApiOperation({ summary: 'verify the otp for the 2fa method selected' })
   async confirmTwoFactor(
     @Request() req,
     @Body() confirmTwoFactor: ConfirmTwoFactorDto,
@@ -68,6 +65,7 @@ export class UserController {
   }
 
   @Patch('2fa/method')
+  @ApiOperation({ summary: 'change the 2fa method' })
   async updateTwoFactorMethod(
     @Request() req,
     @Body() updateTwoFactorMethod: UpdateTwoFactorMethodDto,
@@ -84,6 +82,7 @@ export class UserController {
   }
 
   @Post('2fa/disable')
+  @ApiOperation({ summary: 'stop 2fa challenge when logging in' })
   async disableTwoFactor(@Request() req, user) {
     return {
       status: true,
@@ -94,6 +93,10 @@ export class UserController {
   }
 
   @Post('2fa/backup-codes/regenerate')
+  @ApiOperation({
+    summary:
+      'generate a set of backup codes to use in lieu of totp otp if lost',
+  })
   async regenerateBackupCodes(@Req() req) {
     return {
       status: true,

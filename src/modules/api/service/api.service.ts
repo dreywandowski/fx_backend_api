@@ -13,7 +13,7 @@ import { ApiLogsEntity } from '../entities/api_logs.entity';
 import axiosInstance from 'src/modules/utils/axios.util';
 
 @Injectable()
-export class HttpService {
+export class ApiService {
   constructor(
     @InjectRepository(ApiLogsEntity)
     private readonly apiLogRepository: Repository<ApiLogsEntity>,

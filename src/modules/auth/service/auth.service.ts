@@ -65,24 +65,30 @@ export class AuthService {
       const newUser = await this.userService.createUser(payload);
       await this.sendVerificationEmail(newUser);
 
-      return newUser;
+      return {
+        id: newUser.id,
+        firstname: newUser.firstname,
+        lastname: newUser.lastname,
+        email: newUser.email,
+        phone: newUser.phone,
+        username: newUser.username,
+        created_at: newUser.created_at,
+      };
     } catch (err) {
       throw err;
     }
   }
 
   async verifyEmail(payload: VerifyEmailDto) {
-    const userData = await this.tokenService.verifyToken(
-      payload.token,
-      'verify-email',
-    );
-
-    if (!userData || !userData.email) {
+    const user = await this.userService.findByEmail(payload.email);
+    if (!user) {
       throw new BadRequestException('Invalid email supplied');
     }
-    await this.userService.markEmailVerified(userData.email);
+    await this.otpService.verifyOtp(payload.token, user, 'verify-email');
+
+    await this.userService.markEmailVerified(user.email);
     this.eventEmitter.emit(AuthEvent.EMAIL_VERIFIED, {
-      userId: userData.id,
+      user,
     });
 
     return true;
@@ -183,7 +189,7 @@ export class AuthService {
 
   async verifyTwoFactor(req: UserEntity, data: VerifyTwoFactorDto) {
     try {
-      const isValidOtp = await this.otpService.verifyOtp(data.otp, req);
+      const isValidOtp = await this.otpService.verifyOtp(data.otp, req, '2fa');
       if (!isValidOtp) {
         if (!req.two_factor_backup_codes) {
           throw new UnauthorizedException('Invalid 2FA OTP');
@@ -281,7 +287,7 @@ export class AuthService {
     return { message: 'Password reset successful' };
   }
 
-  async resendLink(data: ResendLinkDto): Promise<void> {
+  async resendOTP(data: ResendLinkDto): Promise<void> {
     const user = await this.userService.findByEmail(data.email, true);
     if (user) {
       await this.sendVerificationEmail(user);
@@ -289,10 +295,7 @@ export class AuthService {
   }
 
   async sendVerificationEmail(user: UserEntity): Promise<void> {
-    const token = await this.tokenService.generateToken(
-      { email: user.email },
-      'verify-email',
-    );
+    const token = await this.otpService.generateOtp(user.id, 'verify-email');
     this.eventEmitter.emit(AuthEvent.SEND_VERIFICATION_EMAIL, {
       userId: user.id,
       email: user.email,
