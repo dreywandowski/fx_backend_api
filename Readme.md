@@ -1,211 +1,136 @@
-Naming Conventions
-The following conventions will be used:
-• Database Collections: We will use lowercase, plural form (e.g., users, profiles).
+# 💸 Wallet API – FX Edition
 
-• Table Columns: We will use snake_case_plural (e.g., `users`, `transactions`).
+This project is a **NestJS-powered wallet API** built for seamless digital transactions, with support for currency conversion, wallet funding via Paystack, and robust authentication/authorization mechanisms.
 
-• API Endpoints: We will use kebab-case and resource-oriented REST paths (e.g., /api/auth/login).
+---
 
-• Environment Variables: Use uppercase with underscores (e.g., JWT_SECRET, MONGO_URI).
+## 🚀 Features
 
-• Variable Names: We will use camelCase for variables, function names , object properties and PascalCase for classes and interface
+- 🔐 JWT Authentication with email verification guard
+- 👛 Wallet management per user and currency
+- 💵 Currency conversion with ExchangeRate API
+- 📦 Redis caching for conversion rates (1 hour TTL)
+- 💳 Paystack integration for wallet funding
+- 🧾 Transaction history with filtering options
+- 🎯 Modular architecture (user, wallet, transaction, auth, FX modules)
 
-• Modules: Each domain (e.g., `user`, `auth`, `payment`) should have its own folder inside `modules/`.
+---
 
-• DTOs: Request and response objects should be explicitly defined under `dto/` with `*.dto.ts` suffix.
+## 🛠️ Technologies
 
-• Entities: Database models should be inside `entities/` and named after the table (e.g., `user.entity.ts`).
+- **NestJS** (obviously)
+- **Redis** (for caching FX rates like a pro)
+- **Paystack** (for payment processing)
+- **ExchangeRate API** (for FX conversions)
+- **JWT** (for secure auth sessions)
+- **PostgreSQL / TypeORM** (or whatever you plug in)
+- **Swagger** (because we document like adults)
 
-• Services & Controllers: Named based on their domain (e.g., `user.service.ts`, `user.controller.ts`).
+---
 
-• Configuration files: configuration files should have `.config.jd/.ts` suffix (`database.config.ts`).
+## 🧬 Core Modules
 
-• Environment files: Environment files should follow `.env.[environment]` (`.env.production`).
+### 🔐 Authentication
 
-Coding Standards
+- Token-based JWT Auth (`AuthGuard`)
+- `EmailVerifiedGuard` to restrict access for non-verified users
 
-- Follow **SOLID Principles**.
-- Keep functions small and single-responsibility.
-- Use **async/await** instead of Promises.
-- Define **interfaces** for structured data.
-- Prefer dependency injection over hardcoded dependencies.
-- Use TypeScript for strict typing.
+### 👤 Users
 
-**Example:**
+- Sign up / login
+- Email verification flag check
+- Relations with wallet and transactions
 
-```typescript
-class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+### 💼 Wallets
 
-  async getUserById(userId: string): Promise<User> {
-    return this.userRepository.findById(userId);
-  }
-}
+- Created per user and currency
+- Get balance
+- Auto-fund via verified Paystack transactions
+
+### 💸 Transactions
+
+- Initiation and verification endpoints
+- Transaction types (FUNDING, CONVERSION, etc.)
+- Atomic DB operations with logging
+
+### 🌐 FX Module
+
+- `convert` endpoint to convert amounts between currencies
+- `getRates` endpoint fetches rates from ExchangeRate API
+- Redis caching (TTL: 3600s = 1 hour)
+- Only returns rates from supported `CurrencyEnum`
+
+---
+
+## 📦 Installation
+
+```bash
+git clone https://github.com/your-org/wallet-fx-api.git
+cd wallet-fx-api
+npm install
+cp .env.example .env
 ```
 
-Security Practices
+## 🧪 Running Locally
 
-- **Use environment variables** for secrets (`process.env.JWT_SECRET`).
-- **Hash passwords** before storing (`bcrypt`, `argon2`).
-- **Implement rate limiting** to prevent abuse.
-- **Validate and sanitize inputs** to prevent SQL Injection and XSS.
-- **Use HTTPS** and enforce secure headers (`helmet.js`).
-- **Implement authentication & authorization** (JWT, OAuth, RBAC).
+```bash
+# Start Redis
+redis-server
 
-API Development Guidelines
+# Start the application
+npm run start:dev
 
-- Use **RESTful principles** or **GraphQL** based on the use case.
-- Follow consistent **HTTP methods** (`GET`, `POST`, `PUT`, `DELETE`).
-- Use **standard status codes** (`200 OK`, `400 Bad Request`, `500 Internal Server Error`).
-- Implement **pagination and filtering** for large datasets.
-- Version APIs (`/api/v1/users`).
-
-Example Response Structure:
-
-```json
-{
-  "status": "success",
-  "data": { "id": 1, "name": "John Doe" }
-}
 ```
 
-Logging and Monitoring
+## 📄 Example .env
 
-- Use **structured logging** (`winston`, `pino`).
-- Store logs in **centralized systems** (ELK stack, CloudWatch).
-- Implement **error tracking** (Sentry, Datadog).
-- Use **health checks** for monitoring (`/health`).
+```env
+JWT_SECRET=super-secret-string
+JWT_ISSUER=wallet-fx-api
+EXCHANGE_RATE_API_KEY=your-api-key
+EXCHANGE_RATE_BASE_URL=https://v6.exchangerate-api.com/v6
+PAYSTACK_SECRET_KEY=sk_test_xxxx
+REDIS_HOST=localhost
+REDIS_PORT=6379
 
-Testing and CI/CD
+```
 
-- Write **unit tests** for critical logic (`jest`, `mocha`).
-- Use **integration tests** to validate API endpoints.
-- Automate tests in **CI/CD pipelines** (`GitHub Actions`, `Jenkins`).
-- Enforce **code reviews** before merging PRs.
+## 🔍 API Endpoints
 
-Documentation
+### Auth
 
-- Maintain a **README.md** with setup instructions.
-- Use **Swagger** for API documentation (`@nestjs/swagger`).
-- Include **architecture diagrams** and **ERDs** for databases.
-- Keep documentation **updated** as features change.
+- **POST /auth/register** - User registration
+- **POST /auth/login** - User login
 
-Performance Optimization
+### Wallet
 
-- **Use caching** (`Redis`, `Memcached`) for frequent queries.
-- **Optimize database queries** (`indexes`, `query optimization`).
-- **Avoid memory leaks** (`node --inspect`, `heap snapshots`).
-- **Use background jobs** for long-running tasks (`BullMQ`).
-- **Minimize API response sizes** (compression, selective field returns).
+- **GET /wallet/balance** - Check wallet balance
+- **POST /wallet/fund** - Fund wallet
 
-Enterprise Application Project Structure
+### Transactions
 
-This document outlines the best practices for structuring a large-scale enterprise application.
+- **GET /transactions** - Get transaction history (filterable)
+- **POST /transactions/verify** - Verify transactions
 
-Project Folder Structure
+### FX
 
-/aishtar
+- **POST /fx/convert** - Convert between currencies
+- **GET /fx/rates** - Get current exchange rates
 
-│── src/
+## 🛡️ Guards
 
-│ │── modules/
+- **AuthGuard**: Validates JWT and attaches user context
+- **EmailVerifiedGuard**: Restricts access to verified users only
 
-│ │ │── user/
+## 🧊 Redis Caching
 
-│ │ │ │── controllers/
+- FX rates cached using from-to currency pair keys
+- Automatic expiration after 1 hour (3600 seconds)
+- Fallback to API when cache expires
 
-│ │ │ │ ├── user.controller.ts
+## 🧠 Note
 
-│ │ │ │── services/
-
-│ │ │ │ ├── user.service.ts
-
-│ │ │ │── repositories/
-
-│ │ │ │ ├── user.repository.ts
-
-│ │ │ │── dto/
-
-│ │ │ │ ├── create-user.dto.ts
-
-│ │ │ │ ├── update-user.dto.ts
-
-│ │ │ │── entities/
-
-│ │ │ │ ├── user.entity.ts
-
-│ │ │ │── user.module.ts
-
-│ │── config/
-
-│ │ ├── database.config.ts
-
-│ │ ├── app.config.ts
-
-│ │── common/
-
-│ │ ├── decorators/
-
-│ │ ├── filters/
-
-│ │ ├── guards/
-
-│ │ ├── interceptors/
-
-│ │── middlewares/
-
-│ │── utils/
-
-│ │── main.ts
-
-│── test/
-
-│── .env
-
-│── .gitignore
-
-│── README.md
-
-│── package.json
-
-│── tsconfig.json
-
-│── nest-cli.json
-
-### **Description**
-
-- **`src/modules/`** → Contains feature-specific modules (e.g., `user`, `auth`).
-- **`controllers/`** → Handles HTTP requests and responses.
-- **`services/`** → Implements business logic.
-- **`repositories/`** → Manages database interactions.
-- **`dto/`** → Defines request/response object structures.
-- **`entities/`** → Defines database models.
-- **`config/`** → Stores application configurations.
-- **`common/`** → Houses shared utilities like decorators, filters, guards.
-- **`middlewares/`** → Stores application middlewares.
-- **`utils/`** → Helper functions for logging, transformations, etc.
-- **`test/`** → Contains unit and integration tests.
-- **`docs/`** → Stores API documentation and architectural diagrams.
-- **`.env`** → Stores environment variables.
-- **`.gitignore`** → Specifies files to exclude from version control.
-- **`README.md`** → Provides documentation for the project.
-- **`package.json`** → Lists dependencies and scripts.
-- **`tsconfig.json`** → Configures TypeScript.
-- **`nest-cli.json`** → Configures NestJS CLI.
-
-Local Deployment
-
-- Clone the repository and cd to it.
-- Ensure env values are set.
-
-$ npm install
-
-$ npm run start
-
-# watch mode
-
-$ npm run start:dev
-
-# production mode
-
-$ npm run start:prod
+- Only currencies in CurrencyEnum are supported
+- Conversion rates use NGN as base currency
+- Errors are logged with descriptive messages
+- All financial operations are atomic and transactional
