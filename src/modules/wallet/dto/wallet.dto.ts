@@ -2,14 +2,13 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
-  IsNumberString,
   IsOptional,
   IsPositive,
   IsString,
   Min,
 } from 'class-validator';
 import { Currency } from '../types';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
 export class GetWalletBalanceDto {
@@ -59,4 +58,65 @@ export class ConvertCurrencyDto {
     type: Number,
   })
   amount: number;
+}
+
+export class PlaceOrderDto {
+  @ApiProperty({
+    example: 'linear',
+    description: 'Market category (e.g., linear, inverse)',
+  })
+  @IsString()
+  category: string;
+
+  @ApiProperty({ example: 'BTCUSDT', description: 'Trading symbol' })
+  @IsString()
+  symbol: string;
+
+  @ApiProperty({ example: 'Buy', description: 'Order side: Buy or Sell' })
+  @IsString()
+  side: string;
+
+  @ApiProperty({
+    example: 'Limit',
+    description: 'Order type: Market, Limit, etc.',
+  })
+  @IsString()
+  orderType: string;
+
+  @ApiProperty({ example: 0.5, description: 'Quantity of the asset to trade' })
+  @IsNumber()
+  qty: number;
+
+  @ApiPropertyOptional({
+    example: 27000,
+    description: 'Limit price if applicable',
+  })
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @ApiProperty({
+    example: 'GTC',
+    description: 'Time in force: GTC, IOC, FOK, etc.',
+  })
+  @IsString()
+  @IsOptional()
+  timeInForce?: string;
+}
+
+export class TradeHistoryQueryDto {
+  @ApiProperty({
+    example: 'linear',
+    description: 'Market category (e.g., linear)',
+  })
+  @IsString()
+  category: string;
+
+  @ApiPropertyOptional({
+    example: 'ETHUSDT',
+    description: 'Optional trading symbol to filter by',
+  })
+  @IsOptional()
+  @IsString()
+  symbol?: string;
 }

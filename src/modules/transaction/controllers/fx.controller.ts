@@ -1,4 +1,12 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { FxService } from '../service/fx.service';
 import { GetFxRatesDto } from '../dto/fx.dto';
 import { AuthGuard } from 'src/modules/common/guards/auth.guard';

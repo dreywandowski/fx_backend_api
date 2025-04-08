@@ -16,13 +16,13 @@ export class TransactionEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true, type: 'varchar', length: 255 })
   reference: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', { precision: 18, scale: 2 })
   amount: number;
 
   @Column({
@@ -41,20 +41,24 @@ export class TransactionEntity {
   @Column({ type: 'decimal', precision: 18, scale: 6, nullable: true })
   rate_used: number;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', length: 10, nullable: true })
   currency: string;
 
-  @ManyToOne(() => WalletEntity, (wallet) => wallet.transactions)
+  @ManyToOne(() => WalletEntity, (wallet) => wallet.transactions, {
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'wallet_id' })
   wallet: WalletEntity;
 
-  @ManyToOne(() => UserEntity, (user) => user.transactions)
+  @ManyToOne(() => UserEntity, (user) => user.transactions, {
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'user_id' })
   user: UserEntity;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ type: 'datetime' })
   created_at: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ type: 'datetime' })
   updated_at: Date;
 }

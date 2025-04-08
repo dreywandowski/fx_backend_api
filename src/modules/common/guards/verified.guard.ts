@@ -15,7 +15,7 @@ export class EmailVerifiedGuard implements CanActivate {
       throw new UnauthorizedException('User not found in request');
     }
 
-    if (!user.is_email_verified) {
+    if (!user.email_verified) {
       throw new UnauthorizedException(
         'Email not verified. Please check your inbox (and maybe your spam folder, too).',
       );

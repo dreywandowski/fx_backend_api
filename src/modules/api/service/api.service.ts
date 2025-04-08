@@ -11,6 +11,7 @@ import { Request } from 'express';
 import { Repository } from 'typeorm';
 import { ApiLogsEntity } from '../entities/api_logs.entity';
 import axiosInstance from 'src/modules/utils/axios.util';
+import { log } from 'node:util';
 
 @Injectable()
 export class ApiService {
@@ -64,8 +65,7 @@ export class ApiService {
 
       logEntry.response = await this.safeStringify(response.data);
       logEntry.latency = Date.now() - startTime;
-      logEntry.status_code = response.data?.status || response.status || 500;
-
+      logEntry.status_code = response.data?.status ? 200 : 200;
       await this.apiLogRepository.save(logEntry);
 
       return this.formatApiResponse(response);

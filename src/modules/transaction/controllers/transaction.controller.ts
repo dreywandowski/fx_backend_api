@@ -18,7 +18,7 @@ import { TransactionService } from '../service/transaction.service';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from 'src/modules/common/guards/auth.guard';
 import { ApiOperation } from '@nestjs/swagger';
-import { TransactionFilterDto } from '../dto/transaction.dto';
+import { TransactionQueryDto } from '../dto/transaction.dto';
 import { EmailVerifiedGuard } from 'src/modules/common/guards/verified.guard';
 
 @Controller('transactions')
@@ -35,10 +35,9 @@ export class TransactionController {
   @ApiOperation({ summary: 'Get transaction history with filters' })
   async getTransactionHistory(
     @Req() req,
-    @Query() filters: TransactionFilterDto,
+    @Query() filters: TransactionQueryDto,
   ) {
-    const userId = req.user.id;
-    return this.transactionService.getTransactionHistory(req, filters);
+    return this.transactionService.getTransactionHistory(req.user, filters);
   }
 
   @Post('/webhook')
@@ -92,12 +91,12 @@ export class TransactionController {
   @UseGuards(AuthGuard, EmailVerifiedGuard)
   @ApiOperation({ summary: 'verify a transaction from paystack' })
   @Get('verify-transaction/:reference')
-  async verifyTransaction(@Req() req, @Param() reference: string) {
+  async verifyTransaction(@Req() req, @Param('reference') reference: string) {
     return {
       status: true,
       message: 'Transaction verified successfully',
       statusCode: HttpStatus.OK,
-      data: this.transactionService.verifyTransaction(req, reference),
+      data: await this.transactionService.verifyTransaction(req, reference),
     };
   }
 }

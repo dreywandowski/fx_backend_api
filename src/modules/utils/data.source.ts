@@ -3,7 +3,7 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 
 const config = configuration();
 export const dbDataSource: DataSourceOptions = {
-  type: 'postgres',
+  type: 'mysql',
   host: config.database.host,
   port: config.database.port,
   username: config.database.username,

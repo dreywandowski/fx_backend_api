@@ -7,12 +7,16 @@ import { FxRatesResponse } from '../interface';
 import { TransactionService } from './transaction.service';
 import { TransactionType } from '../types';
 import { Currency } from 'src/modules/wallet/types';
+import * as crypto from 'crypto';
+import { PlaceOrderDto } from 'src/modules/wallet/dto/wallet.dto';
 
 @Injectable()
 export class FxService {
   private readonly logger = new Logger(FxService.name);
   private readonly baseUrl: string;
   private readonly apiKey: string;
+  private readonly bitApiKey: string;
+  private readonly bitBaseUrl: string;
 
   constructor(
     private readonly apiService: ApiService,
@@ -22,6 +26,18 @@ export class FxService {
   ) {
     this.baseUrl = this.configService.get<string>('fx_api.base_url') || '';
     this.apiKey = this.configService.get<string>('fx_api.key') || '';
+    this.bitApiKey = this.configService.get<string>('buybit.key') || '';
+    this.bitBaseUrl = this.configService.get<string>('buybit.base_url') || '';
+  }
+  private getSignature(params: Record<string, any>): string {
+    const orderedParams = Object.keys(params)
+      .sort()
+      .map((key) => `${key}=${params[key]}`)
+      .join('&');
+    return crypto
+      .createHmac('sha256', this.bitApiKey)
+      .update(orderedParams)
+      .digest('hex');
   }
 
   async convert(req: any, getFxRates: GetFxRatesDto): Promise<FxRatesResponse> {
@@ -51,7 +67,7 @@ export class FxService {
             conversion_result: fxRatesResponse.conversion_result,
           },
           description: `Converted ${getFxRates.amount} ${fxRatesResponse.from} to ${fxRatesResponse.to}`,
-          amount: getFxRates.amount * 100,
+          amount: getFxRates.amount,
           status: 'success',
           rate_used: fxRatesResponse.conversion_rate,
           currency: getFxRates.to,
@@ -115,5 +131,74 @@ export class FxService {
       this.logger.error('Error fetching FX rates', error);
       throw new NotFoundException('Unable to fetch FX rates');
     }
+  }
+
+  async placeOrder(req: any, orderDto: PlaceOrderDto): Promise<any> {
+    try {
+      const endpoint = 'order/create';
+      const url = `${this.bitBaseUrl}${endpoint}`;
+
+      const params = {
+        api_key: this.apiKey,
+        ...orderDto,
+        timestamp: Date.now(),
+      };
+      params['sign'] = this.getSignature(params);
+
+      const response = await this.apiService.request('POST', {
+        req,
+        url,
+        api_payload: params,
+        application: 'buybit-trade',
+      });
+
+      await this.transactionService.updateTransactionAndAdjustBalance(
+        {
+          user: { id: req.user.id },
+          wallet: { id: req.user.walletId },
+          type: TransactionType.TRADE,
+          reference: this.transactionService.generateReference(),
+          metadata: {
+            ...orderDto,
+            response,
+          },
+          description: `Placed ${orderDto.side} order for ${orderDto.qty} ${orderDto.symbol}`,
+          amount: orderDto.qty,
+          status: 'success',
+          currency: orderDto.symbol,
+        },
+        TransactionType.TRADE,
+      );
+
+      this.logger.log('Order placed via Bybit API');
+      return response;
+    } catch (error) {
+      this.logger.error('Failed to place Bybit order', error);
+      throw new NotFoundException('Unable to place order: ' + error.message);
+    }
+  }
+
+  async getTradeHistory(
+    req: any,
+    category: string,
+    symbol?: string,
+  ): Promise<any> {
+    const endpoint = 'order/execution';
+    const url = `${this.bitBaseUrl}${endpoint}`;
+
+    const params = {
+      api_key: this.apiKey,
+      category,
+      symbol,
+      timestamp: Date.now(),
+    };
+    params['sign'] = this.getSignature(params);
+
+    return this.apiService.request('GET', {
+      req,
+      url,
+      application: 'buybit-trading-history',
+      api_payload: params,
+    });
   }
 }

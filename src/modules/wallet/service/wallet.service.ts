@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  forwardRef,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Transaction } from 'typeorm';
 import { WalletEntity } from '../entities/wallet.entity';
@@ -7,8 +14,8 @@ import { FundWalletDto, GetWalletBalanceDto } from '../dto/wallet.dto';
 import { Currency } from '../types';
 import { TransactionService } from 'src/modules/transaction/service/transaction.service';
 import { TransactionEntity } from 'src/modules/transaction/entities/transaction.entity/transaction.entity';
-import { WalletBalanceEntity } from '../entities/wallet-balances.entity';
 import { TransactionType } from 'src/modules/transaction/types';
+import { FxService } from 'src/modules/transaction/service/fx.service';
 
 @Injectable()
 export class WalletService {
@@ -18,9 +25,8 @@ export class WalletService {
     private readonly walletRepository: Repository<WalletEntity>,
     @InjectRepository(UserEntity)
     private readonly userRepository: Repository<UserEntity>,
-    @InjectRepository(TransactionEntity)
-    private readonly transactionRepository: Repository<TransactionEntity>,
     private readonly transactionService: TransactionService,
+    private readonly fxService: FxService,
   ) {}
 
   async createWallet(userId: string): Promise<WalletEntity> {
@@ -59,16 +65,65 @@ export class WalletService {
   }
 
   async fundWallet(req: any, fundData: FundWalletDto) {
-    const wallet = await this.walletRepository.findOne({
-      where: { user: { id: req.user.id } },
-    });
-    if (!wallet) {
-      throw new BadRequestException('Wallet not found for this user');
+    try {
+      let amountInNaira = fundData.amount;
+      const wallet = await this.walletRepository.findOne({
+        where: { user: { id: req.user.id } },
+      });
+      if (!wallet) {
+        throw new BadRequestException('Wallet not found for this user');
+      }
+
+      if (fundData.currency !== Currency.NGN) {
+        const fxRates = await this.fxService.convert(req, {
+          from: fundData.currency || Currency.NGN,
+          to: Currency.NGN,
+          amount: fundData.amount,
+        });
+
+        amountInNaira =
+          typeof fxRates.conversion_result == 'number'
+            ? fxRates.conversion_result
+            : 0;
+        const transactionData = {
+          reference: this.transactionService.generateReference(),
+          amount: amountInNaira,
+          currency: Currency.NGN,
+          walletId: wallet.id,
+          type: TransactionType.FUNDING,
+          description: `Wallet funding with ${fundData.amount} ${fundData.currency}`,
+          metadata: {
+            fromCurrency: fundData.currency,
+            toCurrency: Currency.NGN,
+            conversion_rate: fxRates.conversion_rate,
+            conversion_result: fxRates.conversion_result,
+          },
+        };
+
+        const operationSuccess =
+          await this.transactionService.updateTransactionAndAdjustBalance(
+            transactionData,
+            TransactionType.FUNDING,
+          );
+
+        if (!operationSuccess) {
+          throw new InternalServerErrorException(
+            ' Failed to update wallet balance',
+          );
+        }
+
+        return true;
+      }
+
+      const paystack = await this.transactionService.initiateTransaction(
+        req,
+        fundData,
+      );
+      return paystack;
+    } catch (error) {
+      this.logger.error('Error funding wallet', error);
+      throw new BadRequestException('Error funding wallet' + error.message);
     }
-
-    await this.transactionService.initiateTransaction(req, fundData);
-
-    return true;
   }
 
   async adjustWalletBalanceForTransaction(
@@ -91,9 +146,4 @@ export class WalletService {
       return false;
     }
   }
-
-  /* async getBalance(currency: Currency): Promise<number> {
-    const match = this.balances.find(b => b.currency === currency);
-    return match?.balance ?? 0;
-  }*/
 }

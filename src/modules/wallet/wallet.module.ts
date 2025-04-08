@@ -43,6 +43,7 @@ import { FxService } from '../transaction/service/fx.service';
     JwtService,
     MailService,
     FxService,
+    TransactionService,
   ],
   controllers: [WalletController],
   exports: [WalletService],

@@ -36,8 +36,10 @@ export class PaystackService {
       });
       return response.data;
     } catch (error) {
-      this.logger.error('Error initiating Paystack transaction', error);
-      throw new Error('Paystack transaction initiation failed');
+      this.logger.error('Error initiating Paystack transaction', error.message);
+      throw new Error(
+        'Paystack transaction initiation failed: ' + error.message,
+      );
     }
   }
 

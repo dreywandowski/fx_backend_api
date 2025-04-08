@@ -13,7 +13,7 @@ import { TransactionEntity } from 'src/modules/transaction/entities/transaction.
 import { WalletBalanceEntity } from './wallet-balances.entity';
 import { Currency } from '../types';
 
-@Entity('wallet')
+@Entity('wallets')
 export class WalletEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

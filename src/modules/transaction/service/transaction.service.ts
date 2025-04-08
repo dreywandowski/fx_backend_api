@@ -1,6 +1,6 @@
 import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryRunner, Repository } from 'typeorm';
 import { TransactionEntity } from '../entities/transaction.entity/transaction.entity';
 import { WalletEntity } from 'src/modules/wallet/entities/wallet.entity';
 import { FundWalletDto } from 'src/modules/wallet/dto/wallet.dto';
@@ -10,7 +10,9 @@ import { TransactionType } from '../types';
 import { PaystackService } from './paystack.service';
 import { WalletService } from 'src/modules/wallet/service/wallet.service';
 import { WalletBalanceEntity } from 'src/modules/wallet/entities/wallet-balances.entity';
-import { TransactionFilterDto } from '../dto/transaction.dto';
+import { TransactionQueryDto } from '../dto/transaction.dto';
+import { Currency } from 'src/modules/wallet/types';
+import Big from 'big.js';
 
 @Injectable()
 export class TransactionService {
@@ -38,7 +40,7 @@ export class TransactionService {
     const userId = req.user.id;
     const amount = data.amount;
     const payload = {
-      email: req.user.userEmail,
+      email: req.user.email,
       amount: amount * 100,
       reference: ref,
       currency: 'NGN',
@@ -60,8 +62,7 @@ export class TransactionService {
         req,
         payload,
       );
-
-      if (transactionData.status == 'success') {
+      if (transactionData) {
         this.logger.log(`Transaction initialized successfully: ${ref}`);
         const transaction = this.transactionRepository.create({
           reference: ref,
@@ -69,12 +70,13 @@ export class TransactionService {
           status: 'pending',
           type: TransactionType.FUNDING,
           currency: data?.currency,
+          description: 'wallet funding',
           user,
           wallet,
         });
         await this.transactionRepository.save(transaction);
 
-        return transactionData.data.authorization_url;
+        return transactionData?.authorization_url;
       } else {
         this.logger.warn(`Transaction initialization failed: ${ref}`);
         throw new Error('Transaction initiation failed');
@@ -95,10 +97,10 @@ export class TransactionService {
       );
 
       if (
-        verifyData.status == 'success' &&
-        verifyData.data.status == 'success'
+        (verifyData && verifyData?.status == 'success') ||
+        verifyData?.data?.status == 'success'
       ) {
-        return this.handleSuccessfulTransaction(verifyData.data);
+        return this.handleSuccessfulTransaction(verifyData);
       } else {
         this.logger.warn(`Transaction verification failed: ${reference}`);
         return false;
@@ -137,9 +139,34 @@ export class TransactionService {
   }
 
   async handleSuccessfulTransaction(eventData: any) {
-    this.logger.log(`Successful Transaction: ${JSON.stringify(eventData)}`);
+    const transaction = eventData;
+    if (!transaction || transaction.status !== 'success') {
+      this.logger.warn('Transaction status is not successful');
+      return;
+    }
+
+    const payload = {
+      amount: transaction.amount,
+      currency: transaction.currency,
+      reference: transaction.reference,
+      transactionId: transaction.id,
+      paidAt: transaction.paid_at,
+      channel: transaction.channel,
+      customerEmail: transaction.customer?.email,
+      fees: transaction.fees,
+      metadata: transaction.metadata,
+      gatewayResponse: transaction.gateway_response,
+      authorizationCode: transaction.authorization?.authorization_code,
+      cardLast4: transaction.authorization?.last4,
+      bank: transaction.authorization?.bank,
+    };
+
+    this.logger.log(
+      `Successful Transaction for ${payload.customerEmail}: ${JSON.stringify(payload)}`,
+    );
+
     return this.walletService.adjustWalletBalanceForTransaction(
-      eventData.data,
+      payload,
       TransactionType.FUNDING,
     );
   }
@@ -156,7 +183,10 @@ export class TransactionService {
       this.logger.log(
         `Creating new transaction with reference: ${transactionData.reference}`,
       );
-      transactionData.status = transactionData.status || 'pending';
+      transactionData.status =
+        (['success', 'pending', 'failed'].includes(transactionData?.status) &&
+          transactionData?.status) ||
+        'pending';
       transactionData.description = transactionData.description || '';
       transactionData.type = transactionData.type;
       transaction = this.transactionRepository.create(transactionData);
@@ -166,7 +196,10 @@ export class TransactionService {
         `Updating existing transaction with reference: ${transactionData.reference}`,
       );
       transaction.amount = transactionData.amount || transaction.amount;
-      transaction.status = transactionData.status || transaction.status;
+      transaction.status =
+        (['success', 'pending', 'failed'].includes(transactionData.status) &&
+          transactionData.status) ||
+        'success';
       transaction.description =
         transactionData.description || transaction.description;
       await queryRunner.manager.save(transaction);
@@ -203,42 +236,80 @@ export class TransactionService {
 
   private async adjustBalance(
     operation: TransactionType,
-    sourceBalance: WalletBalanceEntity,
+    sourceBalance: WalletBalanceEntity | null,
     targetBalance: WalletBalanceEntity | null,
-    amount: number,
-    queryRunner: any,
+    amount: number | string,
+    queryRunner: QueryRunner,
     conversionRate?: number,
-  ) {
-    const amountInBaseUnit = amount / 100;
+  ): Promise<void> {
+    const amt = Big(amount.toString()); // Always parse safely with Big
+
     switch (operation) {
       case TransactionType.DEBIT:
-        if (sourceBalance.balance < amountInBaseUnit) {
-          throw new Error(
-            `Insufficient funds: ${sourceBalance.balance} < ${amountInBaseUnit}`,
-          );
+        if (!sourceBalance) {
+          throw new Error('Source balance is required for DEBIT');
         }
-        sourceBalance.balance -= amountInBaseUnit;
+
+        const sourceBalDebit = Big(sourceBalance.balance.toString());
+        if (sourceBalDebit.lt(amt)) {
+          throw new Error(`Insufficient funds: ${sourceBalDebit} < ${amt}`);
+        }
+
+        sourceBalance.balance = Number(sourceBalDebit.minus(amt).toFixed(2));
         await queryRunner.manager.save(sourceBalance);
         break;
 
       case TransactionType.CREDIT:
+        if (!targetBalance) {
+          throw new Error('Target balance is required for CREDIT');
+        }
+
+        const targetBalCredit = Big(targetBalance.balance.toString());
+        targetBalance.balance = Number(targetBalCredit.plus(amt).toFixed(2));
+        await queryRunner.manager.save(targetBalance);
+        break;
+
       case TransactionType.FUNDING:
-        sourceBalance.balance += amountInBaseUnit;
+        if (!sourceBalance) {
+          throw new Error('Source balance is required for FUNDING');
+        }
+
+        const sourceBalFund = Big(sourceBalance.balance.toString());
+        sourceBalance.balance = Number(sourceBalFund.plus(amt).toFixed(2));
         await queryRunner.manager.save(sourceBalance);
         break;
 
       case TransactionType.CONVERT:
+        if (!sourceBalance || !targetBalance) {
+          throw new Error(
+            'Source and target balances are required for CONVERT',
+          );
+        }
         if (!conversionRate) {
           throw new Error('Conversion rate not provided');
         }
+
+        const sourceBalConvert = Big(sourceBalance.balance.toString());
+        const targetBalConvert = Big(targetBalance.balance.toString());
+
+        const convertedAmount = amt.times(conversionRate);
+
+        if (sourceBalConvert.lt(amt)) {
+          throw new Error(
+            `Insufficient funds to convert: ${sourceBalConvert} < ${amt}`,
+          );
+        }
+
+        sourceBalance.balance = Number(sourceBalConvert.minus(amt).toFixed(2));
+        targetBalance.balance = Number(
+          targetBalConvert.plus(convertedAmount).toFixed(2),
+        );
+
+        await queryRunner.manager.save([sourceBalance, targetBalance]);
         break;
 
       default:
-        throw new Error(`Invalid operation: ${operation}`);
-    }
-
-    if (targetBalance && operation !== TransactionType.CONVERT) {
-      await queryRunner.manager.save(targetBalance);
+        throw new Error(`Invalid transaction operation: ${operation}`);
     }
   }
 
@@ -268,30 +339,48 @@ export class TransactionService {
       if (!wallet) {
         throw new Error(`Wallet not found for ID: ${transactionData.walletId}`);
       }
-      let targetBalance = null;
-      let sourceBalance: WalletBalanceEntity | null = null;
-      if (operation != TransactionType.CONVERT) {
-        sourceBalance = await this.getOrCreateWalletBalance(
-          wallet.id,
-          transactionData.currency,
-          queryRunner,
-        );
 
-        if (!sourceBalance) {
-          throw new Error('Source balance could not be found or created');
-        }
-      } else {
-        sourceBalance =
-          this.transactionRepository.manager.create(WalletBalanceEntity);
+      const targetCurrency = transactionData?.metadata?.fromCurrency;
+      const amount = transactionData.amount;
+      const conversionRate = transactionData.metadata?.conversion_rate;
+
+      if (!conversionRate) {
+        throw new Error('Conversion rate is required for this transaction');
+      }
+
+      const sourceCurrency = Currency.NGN;
+      const convertedAmount = amount;
+
+      const sourceBalance = await this.getOrCreateWalletBalance(
+        wallet.id,
+        sourceCurrency,
+        queryRunner,
+      );
+
+      const targetBalance = await this.getOrCreateWalletBalance(
+        wallet.id,
+        targetCurrency,
+        queryRunner,
+      );
+
+      if (!sourceBalance || !targetBalance) {
+        throw new Error('One or both balances could not be found or created');
       }
 
       await this.adjustBalance(
-        operation,
+        TransactionType.DEBIT,
+        sourceBalance,
+        null,
+        convertedAmount,
+        queryRunner,
+      );
+
+      await this.adjustBalance(
+        TransactionType.CREDIT,
         sourceBalance,
         targetBalance,
-        transactionData.amount,
+        amount,
         queryRunner,
-        transactionData.metadata?.conversion_rate,
       );
 
       await queryRunner.commitTransaction();
@@ -312,13 +401,12 @@ export class TransactionService {
     }
   }
 
-  async getTransactionHistory(user: UserEntity, filters: TransactionFilterDto) {
+  async getTransactionHistory(user: UserEntity, filters: TransactionQueryDto) {
     const { page = 1, limit = 10 } = filters;
     const skip = (page - 1) * limit;
-
     const query = this.transactionRepository
       .createQueryBuilder('tx')
-      .where('tx.userId = :userId', { userId: user.id });
+      .where('tx.user_id = :user_id', { user_id: user.id });
 
     if (filters.type) query.andWhere('tx.type = :type', { type: filters.type });
     if (filters.status)
@@ -327,11 +415,11 @@ export class TransactionService {
       query.andWhere('tx.currency = :currency', { currency: filters.currency });
 
     if (filters.fromDate)
-      query.andWhere('tx.createdAt >= :fromDate', {
+      query.andWhere('tx.created_at >= :fromDate', {
         fromDate: new Date(filters.fromDate),
       });
     if (filters.toDate)
-      query.andWhere('tx.createdAt <= :toDate', {
+      query.andWhere('tx.created_at <= :toDate', {
         toDate: new Date(filters.toDate),
       });
 
@@ -341,7 +429,7 @@ export class TransactionService {
       });
 
     const [transactions, total] = await query
-      .orderBy('tx.createdAt', 'DESC')
+      .orderBy('tx.created_at', 'DESC')
       .skip(skip)
       .take(limit)
       .getManyAndCount();

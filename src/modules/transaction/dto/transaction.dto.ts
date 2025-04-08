@@ -7,8 +7,9 @@ import {
   IsNumber,
 } from 'class-validator';
 import { TransactionStatus, TransactionType } from '../types';
+import { Type } from 'class-transformer';
 
-export class TransactionFilterDto {
+export class TransactionQueryDto {
   @ApiPropertyOptional({
     enum: TransactionType,
     description: 'Type of transaction',
@@ -52,11 +53,13 @@ export class TransactionFilterDto {
     default: 1,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   page?: number;
 
   @ApiPropertyOptional({ description: 'Items per page', default: 10 })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   limit?: number;
 }

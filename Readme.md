@@ -18,12 +18,13 @@ This project is a **NestJS-powered wallet API** built for seamless digital trans
 
 ## 🛠️ Technologies
 
-- **NestJS** (obviously)
+- **NestJS**
+- **Typescript**
 - **Redis** (for caching FX rates like a pro)
 - **Paystack** (for payment processing)
 - **ExchangeRate API** (for FX conversions)
 - **JWT** (for secure auth sessions)
-- **PostgreSQL / TypeORM** (or whatever you plug in)
+- **PostgreSQL / TypeORM**
 - **Swagger** (because we document like adults)
 
 ---

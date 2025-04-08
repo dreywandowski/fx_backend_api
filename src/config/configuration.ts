@@ -67,4 +67,9 @@ export default () => ({
     base_url: getEnvOrThrow<string>('FX_ENDPOINT'),
     key: getEnvOrThrow<number>('FX_API_KEY'),
   },
+  buybit: {
+    base_url: getEnvOrThrow<string>('BUYBIT_BASE_URL'),
+    key: getEnvOrThrow<number>('BUYBIT_API_KEY'),
+    secret: getEnvOrThrow<number>('BUYBIT_API_SECRET'),
+  },
 });

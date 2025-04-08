@@ -35,6 +35,7 @@ import { TokenService } from '../auth/service/token.service';
     OtpService,
     JwtAuthService,
     TokenService,
+    WalletService,
   ],
   controllers: [FxController, TransactionController],
   exports: [TransactionService],
