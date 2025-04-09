@@ -147,3 +147,5 @@ npm run start:dev
 - Conversion rates use NGN as base currency
 - Errors are logged with descriptive messages
 - All financial operations are atomic and transactional
+
+Swagger Link ==> http://localhost:5000/api/docs

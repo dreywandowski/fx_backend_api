@@ -139,7 +139,7 @@ export class FxService {
       const url = `${this.bitBaseUrl}${endpoint}`;
 
       const params = {
-        api_key: this.apiKey,
+        api_key: this.bitApiKey,
         ...orderDto,
         timestamp: Date.now(),
       };
@@ -187,7 +187,7 @@ export class FxService {
     const url = `${this.bitBaseUrl}${endpoint}`;
 
     const params = {
-      api_key: this.apiKey,
+      api_key: this.bitApiKey,
       category,
       symbol,
       timestamp: Date.now(),

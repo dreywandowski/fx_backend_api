@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEnum,
   IsNotEmpty,
   IsNumber,
@@ -102,6 +103,16 @@ export class PlaceOrderDto {
   @IsString()
   @IsOptional()
   timeInForce?: string;
+
+  @ApiProperty({})
+  @IsBoolean()
+  @IsOptional()
+  reduce_only?: boolean;
+
+  @ApiProperty({})
+  @IsBoolean()
+  @IsOptional()
+  closeOnTrigger?: boolean;
 }
 
 export class TradeHistoryQueryDto {
