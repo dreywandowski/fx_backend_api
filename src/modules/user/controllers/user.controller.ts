@@ -9,6 +9,7 @@ import {
   HttpStatus,
   UseGuards,
   Req,
+  HttpCode,
 } from '@nestjs/common';
 import { UserService } from '../user.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -30,12 +31,14 @@ export class UserController {
     private readonly otpService: OtpService,
   ) {}
 
+  @HttpCode(200)
   @Get()
   @ApiOperation({ summary: 'retrieve user information' })
   findOne(@Request() req) {
     return this.userService.findById(req.user.id);
   }
 
+  @HttpCode(200)
   @Post('2fa/enable')
   @ApiOperation({ summary: 'enable 2fa' })
   async enableTwoFactor(
@@ -50,6 +53,7 @@ export class UserController {
     };
   }
 
+  @HttpCode(200)
   @Post('2fa/confirm')
   @ApiOperation({ summary: 'verify the otp for the 2fa method selected' })
   async confirmTwoFactor(
@@ -64,6 +68,7 @@ export class UserController {
     };
   }
 
+  @HttpCode(200)
   @Patch('2fa/method')
   @ApiOperation({ summary: 'change the 2fa method' })
   async updateTwoFactorMethod(
@@ -81,6 +86,7 @@ export class UserController {
     };
   }
 
+  @HttpCode(200)
   @Post('2fa/disable')
   @ApiOperation({ summary: 'stop 2fa challenge when logging in' })
   async disableTwoFactor(@Request() req, user) {
@@ -92,6 +98,7 @@ export class UserController {
     };
   }
 
+  @HttpCode(200)
   @Post('2fa/backup-codes/regenerate')
   @ApiOperation({
     summary:

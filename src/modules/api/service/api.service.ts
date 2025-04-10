@@ -63,10 +63,14 @@ export class ApiService {
         ...config,
       });
 
-      logEntry.response = await this.safeStringify(response.data);
+      logEntry.status_code = response?.status;
+      logEntry.response = await this.safeStringify(response?.data);
       logEntry.latency = Date.now() - startTime;
-      logEntry.status_code = response.data?.status ? 200 : 200;
       await this.apiLogRepository.save(logEntry);
+
+      if (response.status < 200 || response.status >= 300) {
+        throw response;
+      }
 
       return this.formatApiResponse(response);
     } catch (err) {

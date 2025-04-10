@@ -7,6 +7,7 @@ import {
   Req,
   HttpStatus,
   Query,
+  HttpCode,
 } from '@nestjs/common';
 
 import { WalletService } from '../service/wallet.service';
@@ -30,6 +31,7 @@ export class WalletController {
     private readonly fxService: FxService,
   ) {}
 
+  @HttpCode(200)
   @Get()
   @ApiOperation({ summary: 'Retrieve user wallet balances by currency' })
   async getBalance(@Req() req, @Query() query: GetWalletBalanceDto) {
@@ -41,6 +43,7 @@ export class WalletController {
     };
   }
 
+  @HttpCode(200)
   @Post('fund')
   @ApiOperation({ summary: 'Fund user wallet' })
   async fundWallet(@Req() req, @Body() body: FundWalletDto) {
@@ -52,6 +55,7 @@ export class WalletController {
     };
   }
 
+  @HttpCode(200)
   @Get('convert')
   @ApiOperation({
     summary: 'Get the value of an amount from a pair of currencies',
@@ -65,6 +69,7 @@ export class WalletController {
     };
   }
 
+  @HttpCode(201)
   @Post('trade')
   @ApiOperation({ summary: 'Place an order for trading amongst currencies' })
   async placeOrder(@Req() req: any, @Body() orderDto: PlaceOrderDto) {
@@ -76,6 +81,7 @@ export class WalletController {
     };
   }
 
+  @HttpCode(200)
   @Get('trade-history')
   @ApiOperation({ summary: 'Retrieve trading history' })
   async getTradeHistory(@Req() req: any, @Query() query: TradeHistoryQueryDto) {

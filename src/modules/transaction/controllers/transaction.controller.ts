@@ -31,6 +31,7 @@ export class TransactionController {
   ) {}
 
   @Get()
+  @HttpCode(200)
   @UseGuards(AuthGuard, EmailVerifiedGuard)
   @ApiOperation({ summary: 'Get transaction history with filters' })
   async getTransactionHistory(
@@ -87,7 +88,7 @@ export class TransactionController {
     }
   }
 
-  @UseGuards(AuthGuard)
+  @HttpCode(200)
   @UseGuards(AuthGuard, EmailVerifiedGuard)
   @ApiOperation({ summary: 'verify a transaction from paystack' })
   @Get('verify-transaction/:reference')

@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Post,
   Query,
   Req,
@@ -18,6 +19,7 @@ import { EmailVerifiedGuard } from 'src/modules/common/guards/verified.guard';
 export class FxController {
   constructor(private readonly fxService: FxService) {}
 
+  @HttpCode(200)
   @Get('rates')
   @ApiOperation({
     summary: 'Get real-time fx rates of naira against selected currencies',

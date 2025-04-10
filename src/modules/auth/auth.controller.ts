@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
   Req,
+  HttpCode,
 } from '@nestjs/common';
 
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -45,6 +46,7 @@ export class AuthController {
     };
   }
 
+  @HttpCode(200)
   @Post('resend-otp')
   @ApiOperation({
     summary: 'resend verification OTP in case they could not get it',
@@ -58,6 +60,7 @@ export class AuthController {
     };
   }
 
+  @HttpCode(200)
   @Post('login')
   @ApiOperation({
     summary:
@@ -87,6 +90,7 @@ export class AuthController {
     }
   }
 
+  @HttpCode(200)
   @Get('verify')
   @ApiOperation({ summary: 'Verify user email address' })
   async verifyEmail(@Query() verifyEmailDto: VerifyEmailDto) {
@@ -97,6 +101,8 @@ export class AuthController {
       statusCode: HttpStatus.OK,
     };
   }
+
+  @HttpCode(200)
   @Post('refresh-login-token')
   @ApiOperation({ summary: 'Keep user signed in by refresh token' })
   async refreshToken(
@@ -115,6 +121,7 @@ export class AuthController {
     });
   }
 
+  @HttpCode(200)
   @UseGuards(VerifyTwoFactorGuard)
   @ApiOperation({ summary: 'Verify user 2fa login' })
   @Post('verify-2fa')
@@ -127,6 +134,7 @@ export class AuthController {
     };
   }
 
+  @HttpCode(200)
   @Post('password/request-reset')
   @ApiOperation({ summary: 'Initiate a password reset' })
   async requestReset(@Body() requestResetDto: RequestResetDto) {
@@ -138,6 +146,7 @@ export class AuthController {
     };
   }
 
+  @HttpCode(200)
   @Post('password/reset')
   @ApiOperation({ summary: 'Verify and reset user password' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {

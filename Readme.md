@@ -148,4 +148,4 @@ npm run start:dev
 - Errors are logged with descriptive messages
 - All financial operations are atomic and transactional
 
-Swagger Link ==> http://localhost:5000/api/docs
+Swagger Link ==> https://fx.dreywandowski.ng/api/docs
