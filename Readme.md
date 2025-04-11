@@ -67,8 +67,8 @@ This project is a **NestJS-powered wallet API** built for seamless digital trans
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/your-org/wallet-fx-api.git
-cd wallet-fx-api
+git clone https://github.com/dreywandowski/fx_backend_api.git
+cd fx_backend_api
 npm install
 cp .env.example .env
 ```
